@@ -67,7 +67,7 @@ int main(int argc, char **argv)
 	float xmax = coords[1];
 	float ymin = coords[2];
 	float ymax = coords[3];
-	float lmin = 2.5; //assumes 3m slice
+	float lmin = 0.9; //assumes 3m slice
 	float stepcovmax = 0.1;
 	float radratiomin = 0.9;
 	for(int i=0;i<regions.size();i++)

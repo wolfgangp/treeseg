@@ -39,6 +39,7 @@
 #include <pcl/segmentation/region_growing.h>
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/octree/octree.h>
+#include <boost/algorithm/string.hpp>
 
 //File IO
 
@@ -826,24 +827,31 @@ std::vector<std::vector<float>> getDtmAndSlice(const pcl::PointCloud<PointTreese
 	pcl::PointCloud<PointTreeseg>::Ptr tileslice(new pcl::PointCloud<PointTreeseg>);
 	Eigen::Vector4f plotmin,plotmax;
 	pcl::getMinMax3D(*plot,plotmin,plotmax);
+	// std::cout << plotmin[0] << " < x < " << plotmax[0] << std::endl;
+	// std::cout << plotmin[1] << " < y < " << plotmax[1] << std::endl;
+	// std::cout << plotmin[2] << " < z < " << plotmax[2] << std::endl;
 	for(float x=plotmin[0];x<plotmax[0];x+=resolution)
 	{
 		spatial1DFilter(plot,"x",x,x+resolution,tmpcloud);
 		for(float y=plotmin[1];y<plotmax[1];y+=resolution)
 		{
 			spatial1DFilter(tmpcloud,"y",y,y+resolution,tile);
-			std::sort(tile->points.begin(),tile->points.end(),sortCloudByZ);
-			int idx = (percentile / 100) * tile->points.size();
-			float ground = tile->points[idx].z;
-			result.push_back(x);
-			result.push_back(y);
-			result.push_back(ground);
-			dem.push_back(result);
-			spatial1DFilter(tile,"z",ground+zmin,ground+zmax,tileslice);
-			*slice += *tileslice;
-			result.clear();
-			tile->clear();
-			tileslice->clear();
+			if (!tile->empty())
+			{
+				std::sort(tile->points.begin(),tile->points.end(),sortCloudByZ);
+				int idx = (percentile / 100) * tile->points.size();
+				// std::cout << "idx " << idx << " tile points size: " << tile->points.size() << std::endl;
+				float ground = tile->points[idx].z;
+				result.push_back(x);
+				result.push_back(y);
+				result.push_back(ground);
+				dem.push_back(result);
+				spatial1DFilter(tile,"z",ground+zmin,ground+zmax,tileslice);
+				*slice += *tileslice;
+				result.clear();
+				tile->clear();
+				tileslice->clear();
+			}
 		}
 		tmpcloud->clear();
 	}
