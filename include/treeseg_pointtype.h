@@ -30,9 +30,10 @@
 
 #include <pcl/point_types.h>
 
-struct PointTreeseg
+struct EIGEN_ALIGN16 PointTreeseg
 {
 	PCL_ADD_POINT4D;
+	PCL_ADD_RGB;
 	#if XYZRRDRS == true
 		union
 		{
@@ -55,7 +56,7 @@ struct PointTreeseg
 		};
 		//this may be poorly aligned (i.e., padding)
 	#endif
-	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+	PCL_MAKE_ALIGNED_OPERATOR_NEW
 };
 POINT_CLOUD_REGISTER_POINT_STRUCT
 (
@@ -63,6 +64,7 @@ POINT_CLOUD_REGISTER_POINT_STRUCT
 	(float,x,x)
 	(float,y,y)
 	(float,z,z)
+	(float, rgb, rgb)
 	#if XYZRRDRS == true
 		(float,range,range)
 		(float,reflectance,reflectance)

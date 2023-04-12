@@ -23,7 +23,7 @@ add_library(leafsep SHARED ${CMAKE_SOURCE_DIR}/src/leafsep.cpp)
 target_link_libraries(leafsep treeseg ${PCL_LIBRARIES} ${ARMADILLO_LIBRARIES})
 
 add_executable(plotcoords ${CMAKE_SOURCE_DIR}/src/plotcoords.cpp)
-target_link_libraries(plotcoords)
+target_link_libraries(plotcoords ${PCL_LIBRARIES})
 
 add_executable(nearestneighbour ${CMAKE_SOURCE_DIR}/src/nearestneighbour.cpp)
 target_link_libraries(nearestneighbour treeseg ${PCL_LIBRARIES})
