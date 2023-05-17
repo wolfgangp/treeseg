@@ -2,6 +2,8 @@
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/common/common.h>
+#include "json.hpp"
+using json = nlohmann::json;
 
 int main(int argc, char **argv)
 {
@@ -45,7 +47,7 @@ int main(int argc, char **argv)
 	writeClouds(regions,ss.str(),false);
 	std::cout << ss.str() << " | " << regions.size() << std::endl;
 	//
-	std::cout << "RANSAC cylinder fits: " << std::flush;
+	std::cout << "RANSAC cylinder fits: " << std::endl << std::flush;
 	std::vector<std::pair<float,pcl::PointCloud<PointTreeseg>::Ptr>> cylinders;
 	nnearest = 60;
 	float dmin = std::stof(args[1]);
@@ -67,33 +69,54 @@ int main(int argc, char **argv)
 	float xmax = coords[1];
 	float ymin = coords[2];
 	float ymax = coords[3];
-	float lmin = 0.9; //assumes 3m slice
+	float lmin = 1.5; // was 2.5m, assumed 3m slice
 	float stepcovmax = 0.1;
 	float radratiomin = 0.9;
+	json trees_array = json::array();
+	// problems arising here with our not-scaled-up pcd's: far too little length. no radratio.
 	for(int i=0;i<regions.size();i++)
 	{
 		cylinder cyl;
 		fitCylinder(regions[i],nnearest,true,true,cyl);
-		//std::cout << cyl.ismodel << " " << cyl.rad << " " << cyl.len << " " << cyl.stepcov << " " << cyl.radratio << " " << cyl.x << " " << cyl.y << std::endl;
+		// std::cout << "cyl: " << cyl.ismodel << " " << cyl.rad << " " << cyl.len << " " << cyl.stepcov << " " << cyl.radratio << " " << cyl.x << " " << cyl.y << std::endl;
 		if(cyl.ismodel == true)
 		{		
 			if(cyl.rad*2 >= dmin && cyl.rad*2 <= dmax && cyl.len >= lmin)
 			{
-				if(cyl.stepcov <= stepcovmax && cyl.radratio > radratiomin)
+				// if(cyl.stepcov <= stepcovmax && cyl.radratio > radratiomin)
+				if (cyl.stepcov <= stepcovmax)
 				{
 					if(cyl.x >= xmin && cyl.x <= xmax)
 					{
 						if(cyl.y >= ymin && cyl.y <= ymax)
 						{
 							cylinders.push_back(std::make_pair(cyl.rad,cyl.inliers));
+							json tree = {
+								{"x", cyl.x},
+								{"y", cyl.y},
+								{"z", cyl.z},
+								{"dx", cyl.dx},
+								{"dy", cyl.dy},
+								{"dz", cyl.dz},
+								{"radius", cyl.rad},
+							};
+							trees_array.push_back(tree);
 						}
 					}
 				}
 			}
 		}
 	}
+
+	std::ofstream trees_jsonfile("trees.json");
+	trees_jsonfile << trees_array << std::endl;
+	trees_jsonfile.close();
+
 	std::sort(cylinders.rbegin(),cylinders.rend());
 	std::vector<pcl::PointCloud<PointTreeseg>::Ptr> cyls;
+	// we are interested in the cylinder objects. these have pointcloud members (=inliers) which will be output separately.
+	// cylinders is a list of pairs (radius, inliers).
+	// cyls is a list of pointcloud objects which are the cylinders' inliers.
 	for(int i=0;i<cylinders.size();i++) cyls.push_back(cylinders[i].second);
 	ss.str("");
 	ss << id[0] << ".intermediate.slice.clusters.regions.cylinders.pcd";
@@ -113,10 +136,12 @@ int main(int argc, char **argv)
 		Eigen::Vector4f gvector(eigenvectors(0,2),eigenvectors(1,2),0,0);
 		Eigen::Vector4f cvector(eigenvectors(0,2),eigenvectors(1,2),eigenvectors(2,2),0);
 		float angle = pcl::getAngle3D(gvector,cvector) * (180/M_PI);
-		if(angle >= (90 - anglemax) && angle <= (90 + anglemax)) idx.push_back(j);
+		if (angle >= (90 - anglemax) && angle <= (90 + anglemax)) {
+			idx.push_back(j);
+		}
 	}
 	std::vector<pcl::PointCloud<PointTreeseg>::Ptr> pca;
-        for(int k=0;k<idx.size();k++) pca.push_back(cyls[idx[k]]);	
+    for(int k=0;k<idx.size();k++) pca.push_back(cyls[idx[k]]);	
 	ss.str("");
 	ss << id[0] << ".intermediate.slice.clusters.regions.cylinders.principal.pcd";
 	writeClouds(pca,ss.str(),false);

@@ -51,7 +51,7 @@ struct cylinder
         float steprad;
         float stepcov;
         float radratio;
-	pcl::PointCloud<PointTreeseg>::Ptr cloud;
+		pcl::PointCloud<PointTreeseg>::Ptr cloud;
         pcl::PointCloud<PointTreeseg>::Ptr inliers;
 };
 
@@ -155,6 +155,7 @@ void removeDuplicatePoints(pcl::PointCloud<PointTreeseg>::Ptr &cloud);
 //treeseg specific
 
 std::vector<std::vector<float>> getDtmAndSlice(const pcl::PointCloud<PointTreeseg>::Ptr &plot, float resolution, float percentile, float zmin, float zmax, pcl::PointCloud<PointTreeseg>::Ptr &slice);
+// void getDtmAndSlice2(const pcl::PointCloud<PointTreeseg>::Ptr &plot, pcl::PointCloud<PointTreeseg>::Ptr &slice, pcl::PointCloud<PointTreeseg>::Ptr &dtm, int windowsize, float slope, float distance_init, float distance_max);
 void correctStem(const pcl::PointCloud<PointTreeseg>::Ptr &stem, float nnearest, float zstart, float zstep, float stepcovmax, float radchangemin, pcl::PointCloud<PointTreeseg>::Ptr &corrected);
 void removeFarRegions(float dmin, std::vector<pcl::PointCloud<PointTreeseg>::Ptr> &regions);
 void precalculateIntersections(const std::vector<pcl::PointCloud<PointTreeseg>::Ptr> &regions, std::vector<std::vector<bool>> &intersections, float expansion);

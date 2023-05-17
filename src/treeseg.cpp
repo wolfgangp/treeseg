@@ -38,6 +38,7 @@
 #include <pcl/segmentation/extract_clusters.h>
 #include <pcl/segmentation/region_growing.h>
 #include <pcl/segmentation/sac_segmentation.h>
+// #include <pcl/segmentation/progressive_morphological_filter.h>
 #include <pcl/octree/octree.h>
 #include <boost/algorithm/string.hpp>
 
@@ -509,7 +510,8 @@ std::vector<float> fitCircle(const pcl::PointCloud<PointTreeseg>::Ptr &cloud, in
 void fitCylinder(const pcl::PointCloud<PointTreeseg>::Ptr &cloud, int nnearest, bool finite, bool diagnostics, cylinder &cyl)
 {
 	cyl.ismodel = false;
-	if(cloud->points.size() >= 10)
+	// if(cloud->points.size() >= 10)
+	if(cloud->points.size() >= 3)
 	{
 		std::vector<float> nndata;
 		nndata  = dNN(cloud,nnearest);
@@ -573,20 +575,24 @@ void fitCylinder(const pcl::PointCloud<PointTreeseg>::Ptr &cloud, int nnearest, 
 				if(cyl.steprad > 0) cyl.ismodel = true;
 			}
 		}
+	} else {
+		// std::cout << "cyl.ismodel=False, require 3 points and have " << cloud->points.size() << std::endl;
 	}
 }
 
 void cylinderDiagnostics(cylinder &cyl, int nnearest)
 {
-	int NSTEP = 6;
+	// int NSTEP = 6;
+	int NSTEP = 2;
+	// I think these steps (NSTEP) are mainly useful to avoid commission of vines as tree stems.
 	pcl::PointCloud<PointTreeseg>::Ptr inliers_transformed(new pcl::PointCloud<PointTreeseg>);
-	Eigen::Vector3f point(cyl.x,cyl.y,cyl.z);
-	Eigen::Vector3f direction(cyl.dx,cyl.dy,cyl.dz);
+	Eigen::Vector3f point(cyl.x, cyl.y, cyl.z);
+	Eigen::Vector3f direction(cyl.dx, cyl.dy, cyl.dz);
 	Eigen::Affine3f transform;
 	Eigen::Vector3f world(0,direction[2],-direction[1]);
 	direction.normalize();
-	pcl::getTransformationFromTwoUnitVectorsAndOrigin(world,direction,point,transform);
-	pcl::transformPointCloud(*cyl.inliers,*inliers_transformed,transform);
+	pcl::getTransformationFromTwoUnitVectorsAndOrigin(world, direction, point, transform);
+	pcl::transformPointCloud(*cyl.inliers, *inliers_transformed, transform);
 	Eigen::Vector4f min,max;
 	pcl::getMinMax3D(*inliers_transformed,min,max);
 	float zstep = (max[2]-min[2]) / NSTEP;
@@ -598,19 +604,24 @@ void cylinderDiagnostics(cylinder &cyl, int nnearest)
 		pcl::PointCloud<PointTreeseg>::Ptr slice(new pcl::PointCloud<PointTreeseg>);
 		spatial1DFilter(inliers_transformed,"z",zmin,zmax,slice);
 		cylinder zcyl;
-		fitCylinder(slice,nnearest,false,false,zcyl);
-		if(zcyl.ismodel == true) zrads.push_back(zcyl.rad);
+		fitCylinder(slice, nnearest, false, false, zcyl);
+		// if (!(zcyl.ismodel)) std::cout << "cyl " << i << " = False" << std::endl;
+		if(zcyl.ismodel == true) {
+			zrads.push_back(zcyl.rad);
+		}
 	}
 	if(zrads.size() >= NSTEP - 2)
+	// we hardly ever get as far as this (which in turn keeps radratio below threshold)
 	{
-		float sum = std::accumulate(zrads.begin(),zrads.end(),0.0);
-		float mean = sum/zrads.size();
+		float sum = std::accumulate(zrads.begin(), zrads.end(), 0.0);
+		float mean = sum / zrads.size();
 		std::vector<float> diff(zrads.size());
-		std::transform(zrads.begin(),zrads.end(),diff.begin(),std::bind2nd(std::minus<float>(),mean));
+		std::transform(zrads.begin(), zrads.end(), diff.begin(), std::bind2nd(std::minus<float>(), mean));
 		float stddev = std::sqrt(std::inner_product(diff.begin(),diff.end(),diff.begin(),0.0) / zrads.size());
 		cyl.steprad = mean;
-		cyl.stepcov = stddev/mean;
-		cyl.radratio = std::min(cyl.rad,cyl.steprad)/std::max(cyl.rad,cyl.steprad);
+		cyl.stepcov = stddev / mean;
+		cyl.radratio = std::min(cyl.rad, cyl.steprad) / std::max(cyl.rad, cyl.steprad);
+		// std::cout << "rad: " << cyl.rad << " steprad: " << cyl.steprad << " radratio: " << cyl.radratio << std::endl;
 	}
 }
 
@@ -857,6 +868,34 @@ std::vector<std::vector<float>> getDtmAndSlice(const pcl::PointCloud<PointTreese
 	}
 	return dem;
 }
+
+/*
+void getDtmAndSlice2(const pcl::PointCloud<PointTreeseg>::Ptr &plot, pcl::PointCloud<PointTreeseg>::Ptr &slice, pcl::PointCloud<PointTreeseg>::Ptr &dtm, int windowsize, float slope, float distance_init, float distance_max)
+{
+	pcl::PointIndicesPtr ground(new pcl::PointIndices);
+	pcl::ProgressiveMorphologicalFilter<PointTreeseg> pmf;
+	pmf.setInputCloud(plot);
+	pmf.setMaxWindowSize(windowsize);
+	pmf.setSlope(slope);
+	pmf.setInitialDistance(distance_init);
+	pmf.setMaxDistance(distance_max);
+	std::cout << "pmf running. extracting indices.." << std::endl;
+	pmf.extract(ground->indices);
+
+	// Create the filtering object
+	pcl::ExtractIndices<PointTreeseg> extract;
+	extract.setInputCloud(plot);
+	extract.setIndices(ground);
+	extract.setNegative(true);
+	std::cout << "creating ground cloud." << std::endl;
+	extract.filter(*slice);
+
+	// now store the dtm (=the ground points)
+	extract.setNegative(false);
+	std::cout << "creating object cloud." << std::endl;
+	extract.filter(*dtm);
+}
+*/
 
 void correctStem(const pcl::PointCloud<PointTreeseg>::Ptr &stem, float nnearest, float zstart, float zstep, float stepcovmax, float radchangemin, pcl::PointCloud<PointTreeseg>::Ptr &corrected)
 {

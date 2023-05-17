@@ -4,7 +4,7 @@
 #include <fstream>
 #include <algorithm>
 
-#include <dirent.h>
+// #include <dirent.h>
 #include "treeseg.h"
 
 #include <pcl/io/ply_io.h>
@@ -89,8 +89,16 @@ int main(int argc, char** argv)
 	}
 
  	Eigen::Affine3f transform = Eigen::Affine3f::Identity();
-	float theta = -M_PI/2; // The angle of rotation in radians
-	transform.rotate(Eigen::AngleAxisf(theta, Eigen::Vector3f::UnitX()));
+	if (strcmp(argv[1], "-luma") == 0) {
+		float theta = M_PI/2;
+		// transform.rotate(Eigen::AngleAxisf(theta, Eigen::Vector3f::UnitX()));
+		// transform.rotate(Eigen::AngleAxisf(theta, Eigen::Vector3f::UnitZ()));
+		transform.rotate(Eigen::AngleAxisf(theta, Eigen::Vector3f::UnitY())).rotate(
+			Eigen::AngleAxisf(theta, Eigen::Vector3f::UnitX()));
+	} else {
+		float theta = -M_PI/2; // The angle of rotation in radians
+		transform.rotate(Eigen::AngleAxisf(theta, Eigen::Vector3f::UnitX()));
+	}
 	pcl::PointCloud<PointTreeseg>::Ptr rotated_cloud(new pcl::PointCloud<PointTreeseg> ());
 	pcl::transformPointCloud(*source_cloud, *rotated_cloud, transform);
 	Eigen::Vector4f rotated_min, rotated_max;
