@@ -51,6 +51,8 @@ struct cylinder
         float steprad;
         float stepcov;
         float radratio;
+		float angle;
+		Eigen::Vector4f cvector;
 		pcl::PointCloud<PointTreeseg>::Ptr cloud;
         pcl::PointCloud<PointTreeseg>::Ptr inliers;
 };
@@ -150,6 +152,7 @@ float minDistBetweenClouds(const pcl::PointCloud<PointTreeseg>::Ptr &a, const pc
 float minDistBetweenClouds(const pcl::PointCloud<PointTreeseg>::Ptr &a, const pcl::PointCloud<PointTreeseg>::Ptr &b, const pcl::KdTreeFLANN<PointTreeseg> &kdtree);
 bool intersectionTest3DBox(const Eigen::Vector4f &amin, const Eigen::Vector4f &amax, const Eigen::Vector4f &bmin, const Eigen::Vector4f &bmax);
 void catIntersectingClouds(std::vector<pcl::PointCloud<PointTreeseg>::Ptr> &clouds);
+void catIntersectingClouds2(std::vector<cylinder> &cylinders);
 void removeDuplicatePoints(pcl::PointCloud<PointTreeseg>::Ptr &cloud);
 
 //treeseg specific

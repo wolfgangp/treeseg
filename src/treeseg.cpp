@@ -542,9 +542,9 @@ void fitCylinder(const pcl::PointCloud<PointTreeseg>::Ptr &cloud, int nnearest, 
 			cyl.x = coeff.values[0];
 			cyl.y = coeff.values[1];
 			cyl.z = coeff.values[2];
-			cyl.dx = coeff.values[3];
-			cyl.dy = coeff.values[4];
-			cyl.dz = coeff.values[5];
+			cyl.dx = coeff.values[3];  // axis direction
+			cyl.dy = coeff.values[4];  // axis direction
+			cyl.dz = coeff.values[5];  // axis direction
 			cyl.rad = coeff.values[6];
 			
 			cyl.steprad = 0;//init these to zero as we are not always setting in these in cylinderDiagnostics
@@ -582,8 +582,8 @@ void fitCylinder(const pcl::PointCloud<PointTreeseg>::Ptr &cloud, int nnearest, 
 
 void cylinderDiagnostics(cylinder &cyl, int nnearest)
 {
-	// int NSTEP = 6;
 	int NSTEP = 2;
+	// int NSTEP = 2;
 	// I think these steps (NSTEP) are mainly useful to avoid commission of vines as tree stems.
 	pcl::PointCloud<PointTreeseg>::Ptr inliers_transformed(new pcl::PointCloud<PointTreeseg>);
 	Eigen::Vector3f point(cyl.x, cyl.y, cyl.z);
@@ -786,7 +786,7 @@ void catIntersectingClouds(std::vector<pcl::PointCloud<PointTreeseg>::Ptr> &clou
 	while(donesomething == true)
 	{
 		int idx;
-		std::vector<float> duplicates;
+		std::vector<int> duplicates;
 		for(int i=0;i<clouds.size();i++)
 		{
 			Eigen::Vector4f amin,amax;
@@ -819,6 +819,50 @@ void catIntersectingClouds(std::vector<pcl::PointCloud<PointTreeseg>::Ptr> &clou
 		else donesomething = false;
 	}
 }
+
+void catIntersectingClouds2(std::vector<cylinder> &cylinders)
+{
+	//this is poorly optimised and currently the primary bottleneck of findstems.
+	bool donesomething = true;
+	while(donesomething == true)
+	{
+		int idx;
+		std::vector<float> duplicates;
+		for(int i=0; i<cylinders.size(); i++)
+		{
+			Eigen::Vector4f amin,amax;
+			pcl::getMinMax3D(*cylinders[i].inliers, amin, amax);
+			for(int j=0; j < cylinders.size(); j++)
+			{
+				if(j != i)
+				{
+					Eigen::Vector4f bmin,bmax;
+					pcl::getMinMax3D(*cylinders[j].inliers, bmin, bmax);
+					bool intersects = intersectionTest3DBox(amin, amax, bmin, bmax);
+					if (intersects == true) duplicates.push_back(j);
+				}
+			}
+			if (duplicates.size() > 0)
+			{
+				idx = i;
+				break;
+			}
+		}
+		if(duplicates.size() > 0) 
+		{
+			std::sort(duplicates.begin(), duplicates.end(), std::greater<int>());
+			for(int k=0; k<duplicates.size(); k++)
+			{
+				// *clouds[idx] += *clouds[duplicates[k]];				
+				*(cylinders[idx].inliers) += *(cylinders[duplicates[k]].inliers);
+				// clouds.erase(clouds.begin()+duplicates[k]);
+				cylinders.erase(cylinders.begin() + duplicates[k]);
+			}
+		}
+		else donesomething = false;
+	}
+}
+
 
 void removeDuplicatePoints(pcl::PointCloud<PointTreeseg>::Ptr &cloud)
 {
